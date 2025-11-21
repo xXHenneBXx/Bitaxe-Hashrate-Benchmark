@@ -20,9 +20,7 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - Docker (optional, for containerized deployment)
 - Git (optional, for cloning the repository)
 
-## Installation
-
-### Standard Installation
+### Installation
 
 1. Clone the repository:
 ```bash
@@ -58,16 +56,16 @@ docker build -t bitaxe-benchmark .
 Run the benchmark tool by providing your Bitaxe's IP address:
 
 ```bash
-python bitaxe_hashrate_benchmark.py <bitaxe_ip>
+python benchmarker.py -i <bitaxe_ip>
 ```
 
 Optional parameters:
-- `-v, --voltage`: Initial voltage in mV (default: 1150)
+- `-v, --voltage`: Initial voltage in mV (default: 1100)
 - `-f, --frequency`: Initial frequency in MHz (default: 500)
 
 Example:
 ```bash
-python bitaxe_hashrate_benchmark.py 192.168.2.29 -v 1175 -f 775
+python benchmarker.py -i 192.168.2.29 -v 1175 -f 775
 ```
 
 ### Docker Usage (Optional)
@@ -116,6 +114,8 @@ The benchmark results are saved to `bitaxe_benchmark_results_<ip_address>.json`,
   - Power efficiency metrics (J/TH)
   - Input voltage measurements
   - Voltage/frequency combinations tested
+  - Total Power Consumption in Watts
+  - Fan Speed in %
 
 ## Safety Features
 
