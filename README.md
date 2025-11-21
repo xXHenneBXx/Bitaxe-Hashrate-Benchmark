@@ -10,8 +10,10 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - Automatic saving of benchmark results
 - Graceful shutdown with best settings retention
 - Docker support for easy deployment
-- Added Fan and Power Monitor
-- asyncio and aiohttp used for better handling of real time and cleanliness
+- *NEW* Added Fan and Power Monitor
+- *NEW* asyncio and aiohttp used for better handling of real time and cleanliness
+- *NEW* Updated UI ~ Fixed color issues, now has color codded script!
+- *NEW*
   
 ## Prerequisites
 
@@ -157,7 +159,10 @@ The tool implements several data processing techniques to ensure accurate result
 - Calculates efficiency in Joules per Terahash (J/TH)
 
 ## Contributing
-Contributers:
+*Contributers:*
+## WhiteyCookie
+## mrv777
+## xXHenneBXx
 
 
 ## License
