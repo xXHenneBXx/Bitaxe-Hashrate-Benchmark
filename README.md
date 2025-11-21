@@ -38,6 +38,7 @@ cd Bitaxe-Hashrate-Benchmark
 ```
 2.1 WINDOWS- Download and run python, before installing, tick the box on the bottom "add to path" THEN Install.
 open CMD or Powershell
+
 2.2 LINUX- 
 ```bash
 sudo apt update && install python
