@@ -36,10 +36,10 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 git clone https://github.com/xXHenneBXx/Bitaxe-Hashrate-Benchmark.git
 cd Bitaxe-Hashrate-Benchmark
 ```
-2.1 WINDOWS- Download and run python, before installing, tick the box on the bottom "add to path" THEN Install.
+2.1 WINDOWS--Download and run python, before installing, tick the box on the bottom "add to path" THEN Install.
 open CMD or Powershell
 
-2.2 LINUX- 
+2.2 LINUX
 ```bash
 sudo apt update && install python
 ```
