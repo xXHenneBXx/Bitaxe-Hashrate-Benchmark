@@ -1,6 +1,6 @@
 # Bitaxe Hashrate Benchmark
 
-A Python-based benchmarking tool for optimizing Bitaxe mining performance by testing different voltage and frequency combinations while monitoring hashrate, temperature, and power efficiency.
+A Python-based benchmarking tool for optimizing Bitaxe mining performance by testing different voltage and frequency combinations while monitoring hashrate, temperature, power efficiency, total power consumption and fan speed.
 
 ## Features
 
@@ -10,7 +10,9 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - Automatic saving of benchmark results
 - Graceful shutdown with best settings retention
 - Docker support for easy deployment
-
+- Added Fan and Power Monitor
+- asyncio and aiohttp used for better handling of real time and cleanliness
+  
 ## Prerequisites
 
 - Python 3.11 or higher
@@ -82,24 +84,24 @@ docker run --rm bitaxe-benchmark 192.168.2.26 -v 1200 -f 550
 ```
 
 ## Configuration
-
+***NOTE: These are set safety parameteres for a stock PSU, Edit "Configuration" as needed***
 The script includes several configurable parameters:
 
-- Maximum chip temperature: 66°C
+- Maximum chip temperature: 68°C
 - Maximum VR temperature: 86°C
-- Maximum allowed voltage: 1400mV
+- Maximum power consumption: 30W 
 - Minimum allowed voltage: 1000mV
+- Maximum allowed voltage: 1300mV
+- Minimum allowed frequency: 500MHz
 - Maximum allowed frequency: 1200MHz
-- Maximum power consumption: 40W
-- Minimum allowed frequency: 400MHz
-- Minimum input voltage: 4800mV
+- Minimum input voltage: 4650mV
 - Maximum input voltage: 5500mV
 - Benchmark duration: 10 minutes
 - Sample interval: 15 seconds
 - Sleep time before benchmark: 90 seconds
 - **Minimum required samples: 7** (for valid data processing)
-- Voltage increment: 20mV
-- Frequency increment: 25MHz
+- Voltage increment: 15mV
+- Frequency increment: 20MHz
 
 ## Output
 
@@ -155,8 +157,8 @@ The tool implements several data processing techniques to ensure accurate result
 - Calculates efficiency in Joules per Terahash (J/TH)
 
 ## Contributing
+Contributers:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
