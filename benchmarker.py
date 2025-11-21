@@ -70,7 +70,6 @@ banner_bottom = r"""
                         ░██     ░██ ░██         ░██   ░████  ░██   ░██ ░██     ░██ ░██       ░██ ░██    ░██ ░██    ░██  ░██    ░██  ░██         ░██    ░██  
                         ░█████████  ░██████████ ░██    ░███   ░██████  ░██     ░██ ░██       ░██ ░██    ░██ ░██     ░██ ░██     ░██ ░██████████ ░██     ░██ 
 """
-
 print(Fore.CYAN + Style.BRIGHT + banner_top + RESET)
 print(Fore.GREEN + banner_bottom + RESET)
 
