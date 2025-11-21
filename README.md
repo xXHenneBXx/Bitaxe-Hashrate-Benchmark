@@ -2,6 +2,16 @@
 
 A Python-based benchmarking tool for optimizing Bitaxe mining performance by testing different voltage and frequency combinations while monitoring hashrate, temperature, power efficiency, total power consumption and fan speed.
 
+## Whats New
+- Concurrent, Non-Blocking Operations
+- asyncio and aiohttp used for better handling of real time data, now capable of multiple network operations
+- Added Fan and Power Consumption to Stats Monitor
+- Updated UI ~ Fixed color issues, now has color codded script using colorama!
+- Improved Efficiency and Speed
+- Better Resource Utilization
+- More Responsive Cleanup and Interrupt Handling
+  Absolutely Optimized !! 
+
 ## Features
 
 - Automated benchmarking of different voltage/frequency combinations
@@ -10,9 +20,9 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - Automatic saving of benchmark results
 - Graceful shutdown with best settings retention
 - Docker support for easy deployment
-- *NEW* Added Fan and Power Monitor
-- *NEW* asyncio and aiohttp used for better handling of real time and cleanliness
-- *NEW* Updated UI ~ Fixed color issues, now has color codded script!
+- 
+- 
+- 
   
 ## Prerequisites
 
