@@ -159,10 +159,10 @@ The tool implements several data processing techniques to ensure accurate result
 - Calculates efficiency in Joules per Terahash (J/TH)
 
 ## Contributing
-*Contributers:*
-## WhiteyCookie
-## mrv777
-## xXHenneBXx
+**Contributers:**
+***WhiteyCookie***
+***mrv777***
+***xXHenneBXx***
 
 
 ## License
