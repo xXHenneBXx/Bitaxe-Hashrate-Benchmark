@@ -89,7 +89,7 @@ The script includes several configurable parameters:
 - Maximum chip temperature: 68°C
 - Maximum VR temperature: 86°C
 - Maximum power consumption: 30W 
-- Minimum allowed voltage: 1000mV
+- Minimum allowed voltage: 1100mV
 - Maximum allowed voltage: 1300mV
 - Minimum allowed frequency: 500MHz
 - Maximum allowed frequency: 1200MHz
