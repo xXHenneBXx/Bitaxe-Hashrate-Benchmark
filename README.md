@@ -13,7 +13,6 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - *NEW* Added Fan and Power Monitor
 - *NEW* asyncio and aiohttp used for better handling of real time and cleanliness
 - *NEW* Updated UI ~ Fixed color issues, now has color codded script!
-- *NEW*
   
 ## Prerequisites
 
@@ -26,7 +25,7 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/mrv777/Bitaxe-Hashrate-Benchmark.git
+git clone https://github.com/xXHenneBXx/Bitaxe-Hashrate-Benchmark.git
 cd Bitaxe-Hashrate-Benchmark
 ```
 
