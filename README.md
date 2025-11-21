@@ -10,7 +10,8 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - Improved Efficiency and Speed
 - Better Resource Utilization
 - More Responsive Cleanup and Interrupt Handling
-  Absolutely Optimized !! 
+
+   **Absolutely Optimized !!** 
 
 ## Features
 
@@ -20,9 +21,6 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - Automatic saving of benchmark results
 - Graceful shutdown with best settings retention
 - Docker support for easy deployment
-- 
-- 
-- 
   
 ## Prerequisites
 
