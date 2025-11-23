@@ -65,17 +65,20 @@ docker build -t bitaxe-benchmark .
 Run the benchmark tool by providing your Bitaxe's IP address:
 
 ```bash
-python benchmarker.py  <bitaxe_ip> <options>
+python benchmarker.py  <bitaxe_ip> [options]
 ```
 
 Optional parameters:
 - `-v, --voltage`: Initial voltage in mV (default: 1100)
 - `-f, --frequency`: Initial frequency in MHz (default: 500)
-- `-m, --mode : Sets the type of benchmarking mode [Single]: One iteration of set or default settings [Normal]: Uses default slower Benchmarking [hybrid]: Faster Benchmarking increments
+- `-m, --mode`: Sets the type of benchmarking mode <single>: One iteration of set or default settings <normal>: Uses default slower Benchmarking <hybrid>: Faster Benchmarking increments
 
 Example:
 ```bash
-python benchmarker.py -i 192.168.2.29 -v 1175 -f 775
+python benchmarker.py 192.168.2.29 -v 1175 -f 775
+python benchmarker.py 192.168.2.29 -v 1175 -f 775 -m hybrid
+python benchmarker.py 192.168.2.29 (default settings)
+python benchmarker.py 192.168.2.29 192.168.2.100 192.168.201 -v 1175 -f 775 (multi device)
 ```
 
 ### Docker Usage (Optional)
@@ -88,7 +91,10 @@ docker run --rm bitaxe-benchmark <bitaxe_ip> [options]
 
 Example:
 ```bash
+docker run --rm bitaxe-benchmark 192.168.2.29
 docker run --rm bitaxe-benchmark 192.168.2.26 -v 1200 -f 550
+docker run --rm bitaxe-benchmark 192.168.2.29 -v 1175 -f 775 -m hybrid
+docker run --rm bitaxe-benchmark 192.168.2.29 192.168.2.100 192.168.201 -v 1175 -f 775 (multi device)
 ```
 
 ## Configuration
