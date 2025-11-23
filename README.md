@@ -4,13 +4,11 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 
 ## Whats New
 - Concurrent, Non-Blocking Operations
-- asyncio and aiohttp used for better handling of real time data, now capable of multiple network operations
+- asyncio and aiohttp used for better handling of real time data, now capable of multi device benchmarking!!
 - Added Fan and Power Consumption to Stats Monitor
 - Updated UI ~ Fixed color issues, now has color codded script using colorama!
 - Improved Efficiency and Speed
 - Better Resource Utilization
-- More Responsive Cleanup and Interrupt Handling
-
    **Absolutely Optimized !!** 
 
 ## Features
