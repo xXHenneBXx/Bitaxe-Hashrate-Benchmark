@@ -1,12 +1,12 @@
 import asyncio
 import aiohttp
-import time
 import json
 import signal
 import sys
 import argparse
 import logging
 import colorama
+from banner import banner_top, banner_bottom
 from colorama import Fore, Style, init
 
 # Initialize colorama
@@ -15,25 +15,33 @@ init(autoreset=True)
 # Custom formatter for colored logs
 class ColoredLevelFormatter(logging.Formatter):
     def format(self, record):
-        levelname = record.levelname
-        msg = record.getMessage()
-
-        color = ''
-        if record.levelno >= logging.CRITICAL:
+        levelno = record.levelno
+        if levelno >= logging.CRITICAL:
             color = Fore.MAGENTA
-        elif record.levelno >= logging.ERROR:
+        elif levelno >= logging.ERROR:
             color = Style.BRIGHT + Fore.RED
-        elif record.levelno >= logging.WARNING:
+        elif levelno >= logging.WARNING:
             color = Style.BRIGHT + Fore.YELLOW
-        elif record.levelno >= logging.INFO:
+        elif levelno >= logging.INFO:
             color = Style.BRIGHT + Fore.GREEN
-        elif record.levelno >= logging.DEBUG:
+        elif levelno >= logging.DEBUG:
             color = Fore.CYAN
-
-        # Compose the message
+        else:
+            color = ''
         message = super().format(record)
-        # Colorize entire message
         return f"{color}{message}{Style.RESET_ALL}"
+        
+#Colorama Colors
+CYAN = Style.BRIGHT + Fore.CYAN
+GREEN = Style.BRIGHT + Fore.GREEN
+YELLOW = Style.BRIGHT + Fore.YELLOW
+RED = Fore.RED
+MAGENTA = Style.BRIGHT + Fore.MAGENTA
+RESET = Style.RESET_ALL
+
+# Logo
+print(Fore.CYAN + Style.BRIGHT + banner_top + RESET)
+print(Fore.GREEN + banner_bottom + RESET)
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -42,36 +50,6 @@ formatter = ColoredLevelFormatter('[%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
 logger.handlers = [handler]
 logger.setLevel(logging.DEBUG)
-
-# Colorama Colors
-CYAN = Style.BRIGHT + Fore.CYAN
-MAGENTA = Style.BRIGHT + Fore.MAGENTA
-GREEN = Style.BRIGHT + Fore.GREEN
-YELLOW = Style.BRIGHT + Fore.YELLOW
-RED = Style.BRIGHT + Fore.RED
-RESET = Style.RESET_ALL
-
-# Banner Title
-banner_top = r"""
-            ░████████   ░██████░██████████   ░███    ░██    ░██ ░██████████                ░██     ░██    ░███      ░██████   ░██     ░██ 
-            ░██    ░██    ░██      ░██      ░██░██    ░██  ░██  ░██                        ░██     ░██   ░██░██    ░██   ░██  ░██     ░██ 
-            ░██    ░██    ░██      ░██     ░██  ░██    ░██░██   ░██                        ░██     ░██  ░██  ░██  ░██         ░██     ░██ 
-            ░████████     ░██      ░██    ░█████████    ░███    ░█████████                 ░██████████ ░█████████  ░████████  ░██████████ 
-            ░██     ░██   ░██      ░██    ░██    ░██   ░██░██   ░██                        ░██     ░██ ░██    ░██         ░██ ░██     ░██ 
-            ░██     ░██   ░██      ░██    ░██    ░██  ░██  ░██  ░██                        ░██     ░██ ░██    ░██  ░██   ░██  ░██     ░██ 
-            ░█████████  ░██████    ░██    ░██    ░██ ░██    ░██ ░██████████                ░██     ░██ ░██    ░██   ░██████   ░██     ░██ 
-"""
-banner_bottom = r"""
-                        ░████████   ░██████████ ░███    ░██   ░██████  ░██     ░██ ░███     ░███    ░███    ░█████████  ░██     ░██ ░██████████ ░█████████  
-                        ░██    ░██  ░██         ░████   ░██  ░██   ░██ ░██     ░██ ░████   ░████   ░██░██   ░██     ░██ ░██    ░██  ░██         ░██     ░██ 
-                        ░██    ░██  ░██         ░██░██  ░██ ░██        ░██     ░██ ░██░██ ░██░██  ░██  ░██  ░██     ░██ ░██   ░██   ░██         ░██     ░██ 
-                        ░████████   ░█████████  ░██ ░██ ░██ ░██        ░██████████ ░██ ░████ ░██ ░█████████ ░█████████  ░███████    ░█████████  ░█████████  
-                        ░██     ░██ ░██         ░██  ░██░██ ░██        ░██     ░██ ░██  ░██  ░██ ░██    ░██ ░██   ░██   ░██   ░██   ░██         ░██   ░██   
-                        ░██     ░██ ░██         ░██   ░████  ░██   ░██ ░██     ░██ ░██       ░██ ░██    ░██ ░██    ░██  ░██    ░██  ░██         ░██    ░██  
-                        ░█████████  ░██████████ ░██    ░███   ░██████  ░██     ░██ ░██       ░██ ░██    ░██ ░██     ░██ ░██     ░██ ░██████████ ░██     ░██ 
-"""
-print(Fore.CYAN + Style.BRIGHT + banner_top + RESET)
-print(Fore.GREEN + banner_bottom + RESET)
 
 # Help Formatter
 class RawTextAndDefaultsHelpFormatter(argparse.RawTextHelpFormatter):
@@ -85,26 +63,35 @@ class RawTextAndDefaultsHelpFormatter(argparse.RawTextHelpFormatter):
                 else:
                     help_text += f"{GREEN} (default: {action.default}{RESET})"
         return help_text
-# Help Arguments and Examples
+
+# Arguments and Examples
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description=f"{YELLOW}Bitaxe Benchmark Tool{RESET}\n"
                     "This script allows you to either benchmark your Bitaxe miner across various "
                     "voltage and frequency settings, or apply specific settings directly.\n",
         epilog=f"{GREEN}Examples:{RESET}\n"
-               f"  {GREEN}1. Full Benchmark (Default at 1150mV, 500MHz ~ 1300mV, 900MHz(MAX set in configs)):{RESET}\n"
-               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 500{RESET}\n\n"
-               f"  {GREEN}2. Specific Settings eg; (1150mV, 780MHz) and exit:{RESET}\n"
+               f"  {GREEN}1. Full Benchmark (Default at 1100mV, 500MHz ~ 1300mV, 900MHz(MAX set in configs)):{RESET}\n"
+               f"     {YELLOW}python {sys.argv[0]} 192.168.0.*{RESET} default settings only\n\n"
+               f"  {GREEN}2. User Specific Settings eg; (Default at 1100mV, 500MHz ~ 1300mV, 900MHz(MAX set in configs)):{RESET}\n"
+               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 780{RESET}\n\n"
+               f"  {GREEN}3. Mode Specific Settings eg;{RESET}\n"
+               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 600 --mode single {RESET} only one iteration of the applied settings\n\n"
+               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 600 --mode normal {RESET} default increment settings applied\n\n"
+               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 600 --mode hybrid {RESET} hybrid mode is faster than normal with larger increments\n\n"
+               f"  {GREEN}4.Device Specific Settings eg; (1150mV, 780MHz) and exit:{RESET}\n"
                f"     {YELLOW}python {sys.argv[0]} 192.168.0.* --set-values -v 1150 -f 780{RESET}\n\n"
-               f"  {GREEN}3.Display This Help Message:{RESET}\n"
+               f"  {GREEN}5.Display This Help Message:{RESET}\n"
                f"     {YELLOW}python {sys.argv[0]} --help{RESET}",
         formatter_class=RawTextAndDefaultsHelpFormatter
     )
-
-    parser.add_argument('-i', '--bitaxe_ip', required=True, help=f"{YELLOW}IP of your Bitaxe miner (e.g., 192.168.0.26)\n  Required for benchmarking and setting.{RESET}")
-    parser.add_argument('-v', '--voltage', type=int, default=1150, help=f"{YELLOW}Set Core Voltage in mV.{RESET}")
+    
+    # Arguments
+    parser.add_argument('bitaxe_ips', nargs='+', help=f"{YELLOW}IP of your Bitaxe miner (e.g., 192.168.0.26)\n  Required for benchmarking and setting.{RESET}")
+    parser.add_argument('-v', '--voltage', type=int, default=1100, help=f"{YELLOW}Set Core Voltage in mV.{RESET}")
     parser.add_argument('-f', '--frequency', type=int, default=500, help=f"{YELLOW}Set Core Frequency in MHz.{RESET}")
     parser.add_argument('-s', '--set-values', action='store_true', help=f"{YELLOW}Set values to Bitaxe only; does NOT run Benchmark.{RESET}")
+    parser.add_argument('-m', '--mode', choices=['single','normal','hybrid'], default='normal', help=f"{YELLOW}Benchmark mode.{RESET}")
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -112,31 +99,58 @@ def parse_arguments():
 
     return parser.parse_args()
 
-
-
 # Configuration
 args = parse_arguments()
-voltage_increment = 15
-frequency_increment = 20
-benchmark_time = 600
-sample_interval = 15
-max_temp = 68
-min_allowed_voltage = 1060
-max_allowed_voltage = 1300
-min_allowed_frequency = 500
-max_allowed_frequency = 1300
-max_vr_temp = 86
-min_input_voltage = 4650
-max_input_voltage = 5500
-max_power = 30
-bitaxe_ip = f"http://{args.bitaxe_ip}"
+voltage_increment = 5              # 5 mV incremtal for fine tuning
+hybrid_voltage_increment = 10      # 10 mV increments for hybrid mode
+frequency_increment = 5            # 5 Mhz incremntal changes for fine tuning
+hybrid_frequency_increment = 15    # 15 Mhz increments for hybrid mode
+benchmark_time = 600               # 10 minutes benchmark time
+sample_interval = 15               # 15 seconds sample interval
+max_temp = 68                      # Will stop if temperature reaches or exceeds this value
+min_allowed_voltage = 1060         # Minimum allowed core voltage
+max_allowed_voltage = 1300         # Maximum allowed core voltage
+min_allowed_frequency = 500        # Minimum allowed frequency
+max_allowed_frequency = 1200       # Maximum allowed core frequency
+max_vr_temp = 86                   # Maximum allowed voltage regulator temperature
+min_input_voltage = 4650           # Minimum allowed input voltage - Internal Voltage Below will start to fail
+max_input_voltage = 5500           # Maximum allowed input voltage - ***DO NOT INCREASE YOU WILL BURN OUT YOUR DEVICE***
+max_power = 60                     # Max of 30W because of DC plug ~ Increase if you have an upgraded PSU
+
+# --- Globals ---
+bitaxe_ips = [f"http://{ip}" for ip in args.bitaxe_ips]
 initial_voltage = args.voltage
 initial_frequency = args.frequency
-
-small_core_count = None
+# Dynamically determined default settings
 asic_count = None
+default_voltage = None
+default_frequency = None
+small_core_count = None
+handling_interrupt = False
+system_reset_done = False
+# Session and event
+session = None                    # Global variable to store the HTTP session
+shutdown_event = asyncio.Event()  # Async event for graceful shutdown
 
-# Validate API inputs
+# --- Generate list of voltages and frequencies based on mode ---
+voltages_list = []
+frequencies_list = []
+
+if args.mode == 'single':
+    voltages_list = [initial_voltage]
+    frequencies_list = [initial_frequency]
+elif args.mode == 'normal':
+    voltages_list = list(range(initial_voltage, max_allowed_voltage + 1, voltage_increment))
+    frequencies_list = list(range(initial_frequency, max_allowed_frequency + 1, frequency_increment))
+elif args.mode == 'hybrid':
+    voltages_list = list(range(initial_voltage, max_allowed_voltage + 1, hybrid_voltage_increment))
+    frequencies_list = list(range(initial_frequency, max_allowed_frequency + 1, hybrid_frequency_increment)) 
+else:
+    # fallback to single if unknown
+    voltages_list = [initial_voltage]
+    frequencies_list = [initial_frequency]
+
+# Validate initial API inputs
 if initial_voltage > max_allowed_voltage:
     raise ValueError(RED + f"Error: Initial voltage exceeds max {max_allowed_voltage}mV." + RESET)
 if initial_voltage < min_allowed_voltage:
@@ -148,26 +162,20 @@ if initial_frequency < min_allowed_frequency:
 if benchmark_time / sample_interval < 7:
     raise ValueError(RED + "Benchmark time too short." + RESET)
 
-# Results
-results = []
-
-# Defaults
-#default_voltage = 1100
-#default_frequency = 500
-system_reset_done = False
-handling_interrupt = False
-
-# Global session variable
-session = None
-# Create an asyncio.Event for shutdown signaling
-shutdown_event = asyncio.Event()
+# Results storage
+if len(bitaxe_ips) == 1:
+    results = []  # Single device - simple list
+else:
+    device_results = {}  # Multiple devices - dictionary
+    for ip in bitaxe_ips:
+        device_results[ip] = []  # Separate tracking per device
 
 # --- Async functions ---
 async def fetch_default_settings(session):
     global default_voltage, default_frequency, small_core_count, asic_count
-    url = f"{bitaxe_ip}/api/system/info"
-    retries = 5
-    for attempt in range(retries):
+    # Take the first IP for single device mode
+    url = f"{bitaxe_ips[0]}/api/system/info"
+    for attempt in range(5):
         try:
             async with session.get(url, timeout=15) as resp:
                 resp.raise_for_status()
@@ -179,7 +187,7 @@ async def fetch_default_settings(session):
                 default_frequency = info.get("frequency", 500)
                 small_core_count = info.get("smallCoreCount", 0)
                 asic_count = info.get("asicCount", 1)
-                logger.info(f"User settings: Voltage={default_voltage}mV, Freq={default_frequency}MHz, Total Cores={small_core_count * asic_count}")
+                logger.info(f"Last Best Known settings: Voltage={default_voltage}mV, Freq={default_frequency}MHz, Total Cores={small_core_count * asic_count}")
                 return
         except asyncio.TimeoutError:
             logger.warning(f"Timeout fetching system info. Attempt {attempt+1}")
@@ -190,17 +198,17 @@ async def fetch_default_settings(session):
     sys.exit(1)
 
 async def set_system_settings(session, core_voltage, frequency):
-    url = f"{bitaxe_ip}/api/system"
+    # Use the first IP for single device mode
+    url = f"{bitaxe_ips[0]}/api/system"
     payload = {
         "coreVoltage": core_voltage,
         "frequency": frequency
     }
-    retries = 5
-    for attempt in range(retries):
+    for attempt in range(5):
         try:
             async with session.patch(url, json=payload, timeout=15) as resp:
                 resp.raise_for_status()
-                logger.info(f"Set Voltage= {core_voltage}mV, Freq= {frequency}MHz")
+                logger.info(f"Starting.. Voltage= {core_voltage}mV, Freq= {frequency}MHz")
                 await asyncio.sleep(2)
                 await restart_system(session)
                 return
@@ -212,27 +220,25 @@ async def set_system_settings(session, core_voltage, frequency):
     logger.error("Failed to set system after retries.")
 
 async def restart_system(session):
-    global handling_interrupt
-    url = f"{bitaxe_ip}/api/system/restart"
+    # Use the first IP for single device mode
+    url = f"{bitaxe_ips[0]}/api/system/restart"
     try:
         if not handling_interrupt:
-            logger.info("Applying new settings, waiting 90s for device restart...")
+            logger.info("Waiting 90s for device restart...")
             async with session.post(url, timeout=15) as resp:
                 resp.raise_for_status()
             await asyncio.sleep(100)
         else:
-            logger.info("Applying final settings...")
+            logger.info("Best settings applied")
             async with session.post(url, timeout=15) as resp:
                 resp.raise_for_status()
-    except asyncio.TimeoutError:
-        logger.warning("Timeout during restart.")
-    except aiohttp.ClientError as e:
-        logger.error(f"Error during restart: {e}")
+    except Exception as e:
+        logger.warning(f"Restart failed: {e}")
 
 async def get_system_info(session):
-    url = f"{bitaxe_ip}/api/system/info"
-    retries = 5
-    for attempt in range(retries):
+    # Use the first IP for single device mode
+    url = f"{bitaxe_ips[0]}/api/system/info"
+    for attempt in range(5):
         try:
             async with session.get(url, timeout=10) as resp:
                 resp.raise_for_status()
@@ -247,7 +253,7 @@ async def get_system_info(session):
 
 async def benchmark_iteration(session, core_voltage, frequency):
     total_samples = benchmark_time // sample_interval
-    expected_hashrate = frequency * ((small_core_count * asic_count) / 1000)
+    expected_hashrate = frequency * ((small_core_count * asic_count) / 1000) # Calculate expected hashrate based on frequency
     hash_rates = []
     temperatures = []
     power_consumptions = []
@@ -260,12 +266,12 @@ async def benchmark_iteration(session, core_voltage, frequency):
             logger.error("Failed to fetch system info.")
             return None, None, None, False, None, None, None, "SYSTEM_INFO_FAILURE"
 
-        temp = info.get("temp")
-        vr_temp = info.get("vrTemp")
-        voltage = info.get("voltage")
-        hash_rate = info.get("hashRate")
-        power_consumption = info.get("power")
-        fan_speed = info.get("fanspeed")
+        temp = info.get("temp") # Get ASIC temperature if available
+        vr_temp = info.get("vrTemp") # Get VR temperature if available
+        voltage = info.get("voltage") # Get Internal Voltage if available
+        hash_rate = info.get("hashRate") # Get Hahs Rate if available
+        power_consumption = info.get("power") # Get Power Consumption if available
+        fan_speed = info.get("fanspeed") # Get Fan Speed if available
 
         # Check limits
         if temp is None:
@@ -313,19 +319,22 @@ async def benchmark_iteration(session, core_voltage, frequency):
             + (f" | FAN:{int(fan_speed):2d}%" if fan_speed is not None else "")
         )
 
+        # Only sleep if it's not the last iteration
         if sample < total_samples - 1:
             await asyncio.sleep(sample_interval)
 
     # Process results
     if hash_rates and temperatures and power_consumptions:
         sorted_hashrates = sorted(hash_rates)
-        trimmed_hashrates = sorted_hashrates[3:-3]
+        trimmed_hashrates = sorted_hashrates[3:-3] # Remove first 3 and last 3 elements
         avg_hashrate = sum(trimmed_hashrates) / len(trimmed_hashrates)
 
+        # Sort and trim temperatures (remove lowest 6 readings during warmup)
         sorted_temps = sorted(temperatures)
-        trimmed_temps = sorted_temps[6:]
+        trimmed_temps = sorted_temps[6:] # Remove first 6 elements only
         avg_temp = sum(trimmed_temps) / len(trimmed_temps)
 
+        # Only process VR temps if we have valid readings
         avg_vr_temp = None
         if vr_temps:
             sorted_vr = sorted(vr_temps)
@@ -358,7 +367,7 @@ async def benchmark_iteration(session, core_voltage, frequency):
         logger.warning("Insufficient data collected.")
         return None, None, None, False, None, None, None, "NO_DATA"
 
-# --- Main async flow ---
+# Main async flow
 async def main():
     global session, results, system_reset_done
     async with aiohttp.ClientSession() as session:
@@ -372,16 +381,22 @@ async def main():
             logger.info("Settings applied. Check web interface.")
             return
 
-        # Warn user
+        # Disclaimer
         logger.warning(RED + "DISCLAIMER: This program Benchmarks your BITAXE Device. ENSURE YOU HAVE PROPER COOLING TO YOUR BOARD AND PSU... USE AT OWN RISK!!!." + RESET)
         logger.warning(RED + "While safeguards are in place, running hardware outside of standard parameters carries inherent risks" + RESET)
-        logger.warning(RED + "THE AUTHORS(s) ARE 'NOT' RESPONSIBLE FOR ANY DAMAGE TO YOUR DEVICE" + RESET)
-        print(MAGENTA + "\nNOTE: Ambient temperature significantly affects these results. The optimal settings found may not work well if room temperature changes substantially. Re-run the benchmark if conditions change.\n" + RESET)
+        logger.warning(RED + "THE AUTHORS ARE 'NOT' RESPONSIBLE FOR ANY DAMAGE TO YOUR DEVICE" + RESET)
+        
+        print(MAGENTA + f"\nNOTE: Ambient temperature significantly affects these results. The optimal settings found may not work well if room temperature changes substantially. Re-run the benchmark if conditions change.\n" + RESET)
 
         current_voltage = initial_voltage
         current_frequency = initial_frequency
 
-        while current_voltage <= max_allowed_voltage and current_frequency <= max_allowed_frequency:
+        # Main benchmarking loop with shutdown check
+        while (
+            current_voltage <= max_allowed_voltage and
+            current_frequency <= max_allowed_frequency and
+            not shutdown_event.is_set()
+        ):
             await set_system_settings(session, current_voltage, current_frequency)
             results_data = await benchmark_iteration(session, current_voltage, current_frequency)
 
@@ -411,21 +426,30 @@ async def main():
                     if current_voltage + voltage_increment <= max_allowed_voltage:
                         current_voltage += voltage_increment
                         current_frequency -= frequency_increment
-                        logger.info(f"Hashrate low, decreasing frequency to {current_frequency}MHz, increasing voltage to {current_voltage}mV")
+                        logger.info(f"Hashrate low, decreasing freq to {current_frequency}MHz, increasing voltage to {current_voltage}mV")
                     else:
                         break
             else:
                 logger.info("Stopped due to Thermal or Settings limit issue, Reconfigure.")
                 break
+        await cleanup_and_exit(session)
 
         # Save results
         await save_results()
+
+        # Results
+        if results:
+            top_results = sorted(results, key=lambda x: x['averageHashRate'], reverse=True)[:5]
+            top_efficient_results = sorted(results, key=lambda x: x["efficiencyJTH"], reverse=False)[:5]
+            print("\nTop 5 results by Hashrate:")
+            for res in top_results + top_efficient_results[:5]:
+                print(f"Voltage: {res['coreVoltage']}mV, Freq: {res['frequency']}MHz, Hashrate: {res['averageHashRate']} GH/s")
         # Reset to best setting
         await reset_to_best_setting(session)
 
 # --- Save results ---
 async def save_results():
-    ip_addr = args.bitaxe_ip
+    ip_addr = args.bitaxe_ips[0]
     filename = f"Benchmark@{ip_addr}.json"
     try:
         with open(filename, "w") as f:
@@ -445,37 +469,8 @@ async def reset_to_best_setting(session):
         await set_system_settings(session, best['coreVoltage'], best['frequency'])
     await restart_system(session)
 
-# --- Restart system ---
-async def restart_system(session):
-    global handling_interrupt
-    url = f"{bitaxe_ip}/api/system/restart"
-    try:
-        if not handling_interrupt:
-            logger.info("Applying new settings, waiting for device restart...")
-            async with session.post(url, timeout=15) as resp:
-                resp.raise_for_status()
-            await asyncio.sleep(100)
-        else:
-            logger.info("Applying final settings...")
-            async with session.post(url, timeout=15) as resp:
-                resp.raise_for_status()
-    except asyncio.TimeoutError:
-        logger.warning("Timeout during restart.")
-    except aiohttp.ClientError as e:
-        logger.error(f"Error during restart: {e}")
-
-# --- Signal handler ---
-def handle_sigint(signum, frame):
-    global handling_interrupt, session, system_reset_done
-    if handling_interrupt or system_reset_done:
-        return
-    handling_interrupt = True
-    logger.info("Interrupted! Resetting system.")
-    # Schedule cleanup
-    asyncio.create_task(cleanup_and_exit(session, "SIGINT received"))
-
 # --- Cleanup ---
-async def cleanup_and_exit(session, reason=None):
+async def cleanup_and_exit(reason=None):
     global system_reset_done
     if system_reset_done:
         return
@@ -483,34 +478,35 @@ async def cleanup_and_exit(session, reason=None):
         if results:
             await reset_to_best_setting(session)
             await save_results()
-            logger.info(CYAN + "Bitaxe reset to best settings and results saved." + RESET)
+            print(Fore.GREEN + "Bitaxe reset to best settings and results saved." + RESET)
         else:
-            logger.info(GREEN + "No valid benchmarking results found. Applying predefined default settings." + RESET)
+            print(Fore.MAGENTA + "No valid benchmarking results found. Applying default settings." + RESET)
             await set_system_settings(session, default_voltage, default_frequency)
+            await reset_to_best_setting(session)
+            await save_results()
     finally:
         system_reset_done = True
         if reason:
-            logger.error(RED + f"Benchmarking stopped: {reason}" + RESET)
-        logger.info(CYAN + "Benchmarking completed." + RESET)
-        # Instead of raising SystemExit, set shutdown event
+            print(Fore.RED + f"Benchmarking stopped: {reason}" + RESET)
+        print(Fore.CYAN + "Benchmarking completed/interrupted. Finishing Iteration, Please Wait Until Completed..." + RESET)
+        # Set shutdown event to exit main loop
         shutdown_event.set()
 
-# Setup event loop with exception handler
-def handle_exception(loop, context):
-    exception = context.get('exception')
-    if isinstance(exception, SystemExit):
+# --- Signal handler ---
+def handle_sigint(signum, frame):
+    global handling_interrupt, session, system_reset_done
+    if handling_interrupt or system_reset_done:
         return
-   
-   # fallback handler
-    loop.default_exception_handler(context)
+    handling_interrupt = True
+    # Schedule cleanup
+    asyncio.create_task(cleanup_and_exit("SIGINT received"))
+    logger.info("Interrupted! Resetting system.")
+
+signal.signal(signal.SIGINT, handle_sigint)
 
 if __name__ == '__main__':
     try:
-        loop = asyncio.new_event_loop()
-        loop.set_exception_handler(handle_exception)
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
+        asyncio.run(main())
     except KeyboardInterrupt:
-        print("Shutdown requested by user.")
-    finally:
-        loop.close()
+        logger.info("Benchmarking interrupted by user")
+        shutdown_event.set()
