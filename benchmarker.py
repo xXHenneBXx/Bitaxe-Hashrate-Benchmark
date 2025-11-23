@@ -91,7 +91,7 @@ def parse_arguments():
     parser.add_argument('-v', '--voltage', type=int, default=1100, help=f"{YELLOW}Set Core Voltage in mV.{RESET}")
     parser.add_argument('-f', '--frequency', type=int, default=500, help=f"{YELLOW}Set Core Frequency in MHz.{RESET}")
     parser.add_argument('-s', '--set-values', action='store_true', help=f"{YELLOW}Set values to Bitaxe only; does NOT run Benchmark.{RESET}")
-    parser.add_argument('-m', '--mode', choices=['single','normal','hybrid'], default='normal', help=f"{YELLOW}Benchmark mode.{RESET}")
+    parser.add_argument('-m', '--mode', choices=['single','normal','hybrid'], default='hybrid', help=f"{YELLOW}Benchmark mode.{RESET}")
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -261,6 +261,10 @@ async def benchmark_iteration(session, core_voltage, frequency):
     fan_speeds = []
 
     for sample in range(total_samples):
+        if shutdown_event.is_set():
+            logger.info("Shutdown detected during benchmark, stopping immediately.")
+            return None, None, None, False, None, None, None, "SHUTDOWN_DURING_BENCHMARK"
+
         info = await get_system_info(session)
         if info is None:
             logger.error("Failed to fetch system info.")
@@ -294,8 +298,8 @@ async def benchmark_iteration(session, core_voltage, frequency):
                 logger.warning("Input voltage above max.")
                 return None, None, None, False, None, None, None, "INPUT_VOLTAGE_ABOVE_MAX"
         if hash_rate is None or power_consumption is None:
-            logger.warning("Hashrate or power data missing.")
-            return None, None, None, False, None, None, None, "HASHRATE_POWER_DATA_FAILURE"
+                logger.warning("Hashrate or power data missing.")
+                return None, None, None, False, None, None, None, "HASHRATE_POWER_DATA_FAILURE"
         if power_consumption > max_power:
             logger.warning("Power exceeded.")
             return None, None, None, False, None, None, None, "POWER_CONSUMPTION_EXCEEDED"
@@ -388,51 +392,39 @@ async def main():
         
         print(MAGENTA + f"\nNOTE: Ambient temperature significantly affects these results. The optimal settings found may not work well if room temperature changes substantially. Re-run the benchmark if conditions change.\n" + RESET)
 
-        current_voltage = initial_voltage
-        current_frequency = initial_frequency
-
-        # Main benchmarking loop with shutdown check
-        while (
-            current_voltage <= max_allowed_voltage and
-            current_frequency <= max_allowed_frequency and
-            not shutdown_event.is_set()
-        ):
-            await set_system_settings(session, current_voltage, current_frequency)
-            results_data = await benchmark_iteration(session, current_voltage, current_frequency)
-
-            if results_data[0] is not None:
-                (avg_hashrate, avg_temp, efficiency, hashrate_ok, avg_vr_temp, avg_power, avg_fan_speed, error_reason) = results_data
-                result_entry = {
-                    "coreVoltage": current_voltage,
-                    "frequency": current_frequency,
-                    "averageHashRate": avg_hashrate,
-                    "averageTemperature": avg_temp,
-                    "efficiencyJTH": efficiency,
-                    "averagePower": avg_power,
-                    "errorReason": error_reason
-                }
-                if avg_vr_temp is not None:
-                    result_entry["averageVRTemp"] = avg_vr_temp
-                if avg_fan_speed is not None:
-                    result_entry["averageFanSpeed"] = avg_fan_speed
-                results.append(result_entry)
-
-                if hashrate_ok:
-                    if current_frequency + frequency_increment <= max_allowed_frequency:
-                        current_frequency += frequency_increment
-                    else:
-                        break
-                else:
-                    if current_voltage + voltage_increment <= max_allowed_voltage:
-                        current_voltage += voltage_increment
-                        current_frequency -= frequency_increment
-                        logger.info(f"Hashrate low, decreasing freq to {current_frequency}MHz, increasing voltage to {current_voltage}mV")
-                    else:
-                        break
-            else:
-                logger.info("Stopped due to Thermal or Settings limit issue, Reconfigure.")
+        for current_voltage in voltages_list:
+            # Check shutdown at the start of each voltage
+            if shutdown_event.is_set():
                 break
-        await cleanup_and_exit(session)
+            
+            for current_frequency in frequencies_list:
+                # Check shutdown at the start of each frequency
+                if shutdown_event.is_set():
+                    break
+                    
+                # Check shutdown one more time before starting the actual benchmark
+                if shutdown_event.is_set():
+                    break
+                
+                await set_system_settings(session, current_voltage, current_frequency)
+                results_data = await benchmark_iteration(session, current_voltage, current_frequency)
+
+                if results_data[0] is not None:
+                    (avg_hashrate, avg_temp, efficiency, hashrate_ok, avg_vr_temp, avg_power, avg_fan_speed, error_reason) = results_data
+                    result_entry = {
+                        "coreVoltage": current_voltage,
+                        "frequency": current_frequency,
+                        "averageHashRate": avg_hashrate,
+                        "averageTemperature": avg_temp,
+                        "efficiencyJTH": efficiency,
+                        "averagePower": avg_power,
+                        "errorReason": error_reason
+                    }
+                    if avg_vr_temp is not None:
+                        result_entry["averageVRTemp"] = avg_vr_temp
+                    if avg_fan_speed is not None:
+                        result_entry["averageFanSpeed"] = avg_fan_speed
+                    results.append(result_entry)
 
         # Save results
         await save_results()
@@ -469,44 +461,55 @@ async def reset_to_best_setting(session):
         await set_system_settings(session, best['coreVoltage'], best['frequency'])
     await restart_system(session)
 
-# --- Cleanup ---
+# --- Signal handler ---
+def handle_sigint(signum, frame):
+    global system_reset_done, handling_interrupt
+    
+    # If we're already handling an interrupt or have completed reset, ignore this signal
+    if handling_interrupt or system_reset_done:
+        return
+        
+    handling_interrupt = True
+    logger.error("Benchmarking interrupted by user.")
+    
+    try:
+        if results:
+            reset_to_best_setting()
+            save_results()
+            logger.info("Bitaxe reset to best or default settings and results saved.")
+        else:
+            logger.warning("No valid benchmarking results found. Applying predefined default settings.")
+            set_system_settings(default_voltage, default_frequency)
+    finally:
+        system_reset_done = True
+        handling_interrupt = False
+        sys.exit(0)
+    
+    # Schedule async cleanup
+    asyncio.create_task(cleanup_and_exit())
+
 async def cleanup_and_exit(reason=None):
     global system_reset_done
     if system_reset_done:
         return
+        
     try:
         if results:
-            await reset_to_best_setting(session)
-            await save_results()
-            print(Fore.GREEN + "Bitaxe reset to best settings and results saved." + RESET)
+            reset_to_best_setting()
+            save_results()
+            print(GREEN + "Bitaxe reset to best settings and results saved." + RESET)
         else:
-            print(Fore.MAGENTA + "No valid benchmarking results found. Applying default settings." + RESET)
-            await set_system_settings(session, default_voltage, default_frequency)
-            await reset_to_best_setting(session)
-            await save_results()
+            print(YELLOW + "No valid benchmarking results found. Applying predefined default settings." + RESET)
+            set_system_settings(default_voltage, default_frequency)
     finally:
         system_reset_done = True
         if reason:
-            print(Fore.RED + f"Benchmarking stopped: {reason}" + RESET)
-        print(Fore.CYAN + "Benchmarking completed/interrupted. Finishing Iteration, Please Wait Until Completed..." + RESET)
-        # Set shutdown event to exit main loop
-        shutdown_event.set()
+            print(RED + f"Benchmarking stopped: {reason}" + RESET)
+        print(GREEN + "Benchmarking completed." + RESET)
+        sys.exit(0)
 
-# --- Signal handler ---
-def handle_sigint(signum, frame):
-    global handling_interrupt, session, system_reset_done
-    if handling_interrupt or system_reset_done:
-        return
-    handling_interrupt = True
-    # Schedule cleanup
-    asyncio.create_task(cleanup_and_exit("SIGINT received"))
-    logger.info("Interrupted! Resetting system.")
-
+# Register the signal handler
 signal.signal(signal.SIGINT, handle_sigint)
 
 if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Benchmarking interrupted by user")
-        shutdown_event.set()
+    asyncio.run(main())
