@@ -65,12 +65,13 @@ docker build -t bitaxe-benchmark .
 Run the benchmark tool by providing your Bitaxe's IP address:
 
 ```bash
-python benchmarker.py -i <bitaxe_ip>
+python benchmarker.py  <bitaxe_ip> <options>
 ```
 
 Optional parameters:
 - `-v, --voltage`: Initial voltage in mV (default: 1100)
 - `-f, --frequency`: Initial frequency in MHz (default: 500)
+- `-m, --mode : Sets the type of benchmarking mode [Single]: One iteration of set or default settings [Normal]: Uses default slower Benchmarking [hybrid]: Faster Benchmarking increments
 
 Example:
 ```bash
