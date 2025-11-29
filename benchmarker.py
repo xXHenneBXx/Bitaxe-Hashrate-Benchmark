@@ -1,15 +1,16 @@
 import asyncio
 import aiohttp
+import time
 import json
 import signal
 import sys
 import argparse
-import logging
 import colorama
+import logging
 from banner import banner_top, banner_bottom
 from colorama import Fore, Style, init
 
-# Initialize colorama
+# Preserve original init
 init(autoreset=True)
 
 # Custom formatter for colored logs
@@ -17,7 +18,7 @@ class ColoredLevelFormatter(logging.Formatter):
     def format(self, record):
         levelno = record.levelno
         if levelno >= logging.CRITICAL:
-            color = Fore.MAGENTA
+            color = Style.BRIGHT + Fore.MAGENTA
         elif levelno >= logging.ERROR:
             color = Style.BRIGHT + Fore.RED
         elif levelno >= logging.WARNING:
@@ -30,18 +31,6 @@ class ColoredLevelFormatter(logging.Formatter):
             color = ''
         message = super().format(record)
         return f"{color}{message}{Style.RESET_ALL}"
-        
-#Colorama Colors
-CYAN = Style.BRIGHT + Fore.CYAN
-GREEN = Style.BRIGHT + Fore.GREEN
-YELLOW = Style.BRIGHT + Fore.YELLOW
-RED = Fore.RED
-MAGENTA = Style.BRIGHT + Fore.MAGENTA
-RESET = Style.RESET_ALL
-
-# Logo
-print(Fore.CYAN + Style.BRIGHT + banner_top + RESET)
-print(Fore.GREEN + banner_bottom + RESET)
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -51,465 +40,657 @@ handler.setFormatter(formatter)
 logger.handlers = [handler]
 logger.setLevel(logging.DEBUG)
 
-# Help Formatter
+#Colorama Colors
+CYAN = Style.BRIGHT + Fore.CYAN
+GREEN = Style.BRIGHT + Fore.GREEN
+YELLOW = Style.BRIGHT + Fore.YELLOW
+RED = Fore.RED
+MAGENTA = Style.BRIGHT + Fore.MAGENTA
+RESET = Style.RESET_ALL
+
+# Banner
+print(Fore.CYAN + Style.BRIGHT + banner_top + RESET)
+print(Fore.GREEN + banner_bottom + RESET)
+
+# This formatter allows for multi-line descriptions in help messages and adds default values
 class RawTextAndDefaultsHelpFormatter(argparse.RawTextHelpFormatter):
     def _get_help_string(self, action):
         help_text = super()._get_help_string(action)
         if action.default is not argparse.SUPPRESS:
+            # Append default value to help text if available
             defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
             if action.option_strings or action.nargs in defaulting_nargs:
                 if "\n" in help_text:
-                    help_text += f"{GREEN}\n(default: {action.default}{RESET})"
+                    help_text += f"\n(default: {action.default})"
                 else:
-                    help_text += f"{GREEN} (default: {action.default}{RESET})"
+                    help_text += f" (default: {action.default})"
         return help_text
 
-# Arguments and Examples
+# Modify the parse_arguments function
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description=f"{YELLOW}Bitaxe Benchmark Tool{RESET}\n"
-                    "This script allows you to either benchmark your Bitaxe miner across various "
-                    "voltage and frequency settings, or apply specific settings directly.\n",
-        epilog=f"{GREEN}Examples:{RESET}\n"
-               f"  {GREEN}1. Full Benchmark (Default at 1100mV, 500MHz ~ 1300mV, 900MHz(MAX set in configs)):{RESET}\n"
-               f"     {YELLOW}python {sys.argv[0]} 192.168.0.*{RESET} default settings only\n\n"
-               f"  {GREEN}2. User Specific Settings eg; (Default at 1100mV, 500MHz ~ 1300mV, 900MHz(MAX set in configs)):{RESET}\n"
-               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 780{RESET}\n\n"
-               f"  {GREEN}3. Mode Specific Settings eg;{RESET}\n"
-               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 600 --mode single {RESET} only one iteration of the applied settings\n\n"
-               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 600 --mode normal {RESET} default increment settings applied\n\n"
-               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* -v 1150 -f 600 --mode hybrid {RESET} hybrid mode is faster than normal with larger increments\n\n"
-               f"  {GREEN}4.Device Specific Settings eg; (1150mV, 780MHz) and exit:{RESET}\n"
-               f"     {YELLOW}python {sys.argv[0]} 192.168.0.* --set-values -v 1150 -f 780{RESET}\n\n"
-               f"  {GREEN}5.Display This Help Message:{RESET}\n"
-               f"     {YELLOW}python {sys.argv[0]} --help{RESET}",
-        formatter_class=RawTextAndDefaultsHelpFormatter
+        description=
+        f"{CYAN}Bitaxe Benchmark Tool{RESET}\n"
+        "This script allows you to either benchmark your Bitaxe miner across various "
+        "voltage and frequency settings, or apply specific settings directly.\n",
+        epilog=
+        f"{GREEN}Examples:{RESET}\n"
+        f"  {GREEN}1. Run a full benchmark (starting at 1150mV, 500MHz):{RESET}\n"
+        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py 192.168.1.136{RESET}\n\n"
+        f"  {GREEN}2. Apply specific settings (1150mV, 780MHz) and exit:{RESET}\n"
+        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py 192.168.1.136 --set-values -v 1150 -f 780{RESET}\n\n"
+        f"  {GREEN}3. Benchmark multiple devices:{RESET}\n"
+        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py 192.168.1.136 192.168.1.137 -v 1150 -f 500{RESET}\n\n"
+        f"  {GREEN}4. Get help (this message):{RESET}\n"
+        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py --help{RESET}",
+        formatter_class=RawTextAndDefaultsHelpFormatter # <--- USE THE CUSTOM FORMATTER
     )
-    
-    # Arguments
-    parser.add_argument('bitaxe_ips', nargs='+', help=f"{YELLOW}IP of your Bitaxe miner (e.g., 192.168.0.26)\n  Required for benchmarking and setting.{RESET}")
-    parser.add_argument('-v', '--voltage', type=int, default=1100, help=f"{YELLOW}Set Core Voltage in mV.{RESET}")
-    parser.add_argument('-f', '--frequency', type=int, default=500, help=f"{YELLOW}Set Core Frequency in MHz.{RESET}")
-    parser.add_argument('-s', '--set-values', action='store_true', help=f"{YELLOW}Set values to Bitaxe only; does NOT run Benchmark.{RESET}")
-    parser.add_argument('-m', '--mode', choices=['single','normal','hybrid'], default='hybrid', help=f"{YELLOW}Benchmark mode.{RESET}")
 
+    # Positional and Optional Arguments (now supports multiple IPs)
+    parser.add_argument('bitaxe_ips', nargs='*', help=f"{GREEN}IP address(es) miner(s) (e.g., 192.168.2.26){RESET}\n")
+    parser.add_argument('-v', '--voltage', type=int, default=1150, help=f"{GREEN}Core voltage in mV.{RESET}\n")
+    parser.add_argument('-f', '--frequency', type=int, default=500, help=f"{GREEN}Core frequency in MHz.{RESET}\n")
+    parser.add_argument('-s', '--set-values', action='store_true', help=f"{GREEN}Apply Defaults or Set settings and Exit. No Benchmark!{RESET}\n")
+
+    # If no arguments are provided, print help and exit
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
-    return parser.parse_args()
+    # Ensure at least one IP provided unless user only asked for help
+#    if not parsed.bitaxe_ips:
+#        parser.print_help()
+#        sys.exit(1)
+
+    return  parser.parse_args()
 
 # Configuration
 args = parse_arguments()
-voltage_increment = 5              # 5 mV incremtal for fine tuning
-hybrid_voltage_increment = 10      # 10 mV increments for hybrid mode
-frequency_increment = 5            # 5 Mhz incremntal changes for fine tuning
-hybrid_frequency_increment = 15    # 15 Mhz increments for hybrid mode
-benchmark_time = 600               # 10 minutes benchmark time
-sample_interval = 15               # 15 seconds sample interval
-max_temp = 68                      # Will stop if temperature reaches or exceeds this value
-min_allowed_voltage = 1060         # Minimum allowed core voltage
-max_allowed_voltage = 1300         # Maximum allowed core voltage
-min_allowed_frequency = 500        # Minimum allowed frequency
-max_allowed_frequency = 1200       # Maximum allowed core frequency
-max_vr_temp = 86                   # Maximum allowed voltage regulator temperature
-min_input_voltage = 4650           # Minimum allowed input voltage - Internal Voltage Below will start to fail
-max_input_voltage = 5500           # Maximum allowed input voltage - ***DO NOT INCREASE YOU WILL BURN OUT YOUR DEVICE***
-max_power = 60                     # Max of 30W because of DC plug ~ Increase if you have an upgraded PSU
+voltage_increment = 15
+frequency_increment = 20
+benchmark_time = 600          # 10 minutes benchmark time
+sample_interval = 15          # 15 seconds sample interval
+max_temp = 68                 # Will stop if temperature reaches or exceeds this value
+min_allowed_voltage = 1000   # Minimum allowed core voltage
+max_allowed_voltage = 1400    # Maximum allowed core voltage
+min_allowed_frequency = 400   # Minimum allowed frequency
+max_allowed_frequency = 1300  # Maximum allowed core frequency
+max_vr_temp = 86              # Maximum allowed voltage regulator temperature
+min_input_voltage = 4600      # Minimum allowed input voltage
+max_input_voltage = 5500      # Maximum allowed input voltage
+max_power = 40                # Max of 30W because of DC plug ~ Increase if you have an upgraded PSU
 
-# --- Globals ---
-bitaxe_ips = [f"http://{ip}" for ip in args.bitaxe_ips]
+# bitaxe_ip variable used per-device now
 initial_voltage = args.voltage
 initial_frequency = args.frequency
-# Dynamically determined default settings
-asic_count = None
-default_voltage = None
-default_frequency = None
+
+# Add these variables to the global configuration section
 small_core_count = None
-handling_interrupt = False
-system_reset_done = False
-# Session and event
-session = None                    # Global variable to store the HTTP session
-shutdown_event = asyncio.Event()  # Async event for graceful shutdown
+asic_count = None
 
-# --- Generate list of voltages and frequencies based on mode ---
-voltages_list = []
-frequencies_list = []
-
-if args.mode == 'single':
-    voltages_list = [initial_voltage]
-    frequencies_list = [initial_frequency]
-elif args.mode == 'normal':
-    voltages_list = list(range(initial_voltage, max_allowed_voltage + 1, voltage_increment))
-    frequencies_list = list(range(initial_frequency, max_allowed_frequency + 1, frequency_increment))
-elif args.mode == 'hybrid':
-    voltages_list = list(range(initial_voltage, max_allowed_voltage + 1, hybrid_voltage_increment))
-    frequencies_list = list(range(initial_frequency, max_allowed_frequency + 1, hybrid_frequency_increment)) 
-else:
-    # fallback to single if unknown
-    voltages_list = [initial_voltage]
-    frequencies_list = [initial_frequency]
-
-# Validate initial API inputs
+# Validate max Core Voltage
 if initial_voltage > max_allowed_voltage:
-    raise ValueError(RED + f"Error: Initial voltage exceeds max {max_allowed_voltage}mV." + RESET)
-if initial_voltage < min_allowed_voltage:
-    raise ValueError(RED + f"Error: Initial voltage below min {min_allowed_voltage}mV." + RESET)
+    raise ValueError(RED + f"Error: Initial voltage exceeds the maximum allowed value of {max_allowed_voltage}mV. Please check the input and try again." + RESET)
+# Validate max Frequency
 if initial_frequency > max_allowed_frequency:
-    raise ValueError(RED + f"Error: Initial frequency exceeds max {max_allowed_frequency}MHz." + RESET)
+    raise ValueError(RED + f"Error: Initial frequency exceeds the maximum allowed value of {max_allowed_frequency}Mhz. Please check the input and try again." + RESET)
+# Validate minimum Core Voltage
+if initial_voltage < min_allowed_voltage:
+    raise ValueError(RED + f"Error: Initial voltage is below the minimum allowed value of {min_allowed_voltage}mV." + RESET)
+# Validate minimal frequency
 if initial_frequency < min_allowed_frequency:
-    raise ValueError(RED + f"Error: Initial frequency below min {min_allowed_frequency}MHz." + RESET)
+    raise ValueError(RED + f"Error: Initial frequency is below the minimum allowed value of {min_allowed_frequency}MHz." + RESET)
+# Validate benchmark time
 if benchmark_time / sample_interval < 7:
-    raise ValueError(RED + "Benchmark time too short." + RESET)
+    raise ValueError(RED + f"Error: Benchmark time is too short. Please increase the benchmark time or decrease the sample interval. At least 7 samples are required." + RESET)
 
-# Results storage
-if len(bitaxe_ips) == 1:
-    results = []  # Single device - simple list
-else:
-    device_results = {}  # Multiple devices - dictionary
-    for ip in bitaxe_ips:
-        device_results[ip] = []  # Separate tracking per device
+# Results storage (keep name; append results with "ip" entry)
+results = []
 
-# --- Async functions ---
-async def fetch_default_settings(session):
+# Dynamically determined default settings
+default_voltage = 1150
+default_frequency = 550
+
+# Check if we're handling an interrupt (Ctrl+C)
+handling_interrupt = False
+
+# Add a global flag to track whether the system has already been reset
+system_reset_done = False
+
+# We will track running tasks to cancel them on signal
+running_tasks = []
+
+# --- Get Info from ASIC and Configs---
+
+async def fetch_default_settings(bitaxe_ip, session):
+    """
+    Fetch /api/system/info and set default_voltage, default_frequency,
+    small_core_count, asic_count (global vars) based on device info.
+    """
     global default_voltage, default_frequency, small_core_count, asic_count
-    # Take the first IP for single device mode
-    url = f"{bitaxe_ips[0]}/api/system/info"
-    for attempt in range(5):
-        try:
-            async with session.get(url, timeout=15) as resp:
-                resp.raise_for_status()
-                info = await resp.json()
-                default_voltage = info.get("coreVoltage", 1100)
-                if "smallCoreCount" not in info:
-                    logger.error("Missing smallCoreCount in system info.")
-                    sys.exit(1)
-                default_frequency = info.get("frequency", 500)
-                small_core_count = info.get("smallCoreCount", 0)
-                asic_count = info.get("asicCount", 1)
-                logger.info(f"Last Best Known settings: Voltage={default_voltage}mV, Freq={default_frequency}MHz, Total Cores={small_core_count * asic_count}")
-                return
-        except asyncio.TimeoutError:
-            logger.warning(f"Timeout fetching system info. Attempt {attempt+1}")
-        except aiohttp.ClientError as e:
-            logger.error(f"Error fetching system info: {e}")
-        await asyncio.sleep(5)
-    logger.error("Failed to fetch system info after retries.")
-    sys.exit(1)
+    try:
+        async with session.get(f"{bitaxe_ip}/api/system/info", timeout=10) as response:
+            if response.status != 200:
+                logger.error(f"Error fetching default system settings from {bitaxe_ip}: HTTP {response.status}. Using fallback defaults.")
+                default_voltage = 1100
+                default_frequency = 500
+                return False
+            system_info = await response.json()
+            default_voltage = system_info.get("coreVoltage", 1100)  # Fallback to 1150 if not found
+            # Always get small_core_count from /system/info since it's always available there
+            if "smallCoreCount" not in system_info:
+                logger.error("Error: smallCoreCount field missing from /api/system/info response.")
+                logger.critical("Cannot proceed without core count information for hashrate calculations.")
+                return False
+            default_frequency = system_info.get("frequency", 500)  # Fallback to 500 if not found
+            small_core_count = system_info.get("smallCoreCount", 0)
+            asic_count = system_info.get("asicCount", 1)
+            logger.info(f"Current settings determined for {bitaxe_ip}:\n"
+                          f"  Core Voltage: {default_voltage}mV\n"
+                          f"  Frequency: {default_frequency}MHz\n"
+                          f"  ASIC Configuration: {small_core_count * asic_count} total cores")
+            return True
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout while fetching default system settings from {bitaxe_ip}. Using fallback defaults.")
+        default_voltage = 1100
+        default_frequency = 500
+        return False
+    except aiohttp.ClientError as e:
+        logger.error(f"Error fetching default system settings from {bitaxe_ip}: {e}. Using fallback defaults.")
+        default_voltage = 1100
+        default_frequency = 500
+        return False
 
-async def set_system_settings(session, core_voltage, frequency):
-    # Use the first IP for single device mode
-    url = f"{bitaxe_ips[0]}/api/system"
-    payload = {
+async def get_system_info(bitaxe_ip, session):
+    retries = 5 
+    for attempt in range(retries):
+        try:
+            async with session.get(f"{bitaxe_ip}/api/system/info", timeout=10) as response:
+                if response.status != 200:
+                    logger.error(f"HTTP {response.status} while fetching system info from {bitaxe_ip}. Attempt {attempt + 1} of {retries}.")
+                else:
+                    return await response.json()
+        except asyncio.TimeoutError:
+            logger.info(f"Timeout while fetching system info from {bitaxe_ip}. Attempt {attempt + 1} of {retries}.")
+        except aiohttp.ClientConnectionError:
+            logger.error(f"Connection error while fetching system info from {bitaxe_ip}. Attempt {attempt + 1} of {retries}.")
+        except aiohttp.ClientError as e:
+            logger.error(f"Error fetching system info from {bitaxe_ip}: {e}")
+            break
+        await asyncio.sleep(5)  # Wait before retrying
+    return None
+
+async def set_system_settings(bitaxe_ip, core_voltage, frequency, session):
+    settings = {
         "coreVoltage": core_voltage,
         "frequency": frequency
     }
-    for attempt in range(5):
-        try:
-            async with session.patch(url, json=payload, timeout=15) as resp:
-                resp.raise_for_status()
-                logger.info(f"Starting.. Voltage= {core_voltage}mV, Freq= {frequency}MHz")
-                await asyncio.sleep(2)
-                await restart_system(session)
-                return
-        except asyncio.TimeoutError:
-            logger.warning(f"Timeout setting system. Attempt {attempt+1}")
-        except aiohttp.ClientError as e:
-            logger.error(f"Error setting system: {e}")
-        await asyncio.sleep(3)
-    logger.error("Failed to set system after retries.")
-
-async def restart_system(session):
-    # Use the first IP for single device mode
-    url = f"{bitaxe_ips[0]}/api/system/restart"
     try:
-        if not handling_interrupt:
-            logger.info("Waiting 90s for device restart...")
-            async with session.post(url, timeout=15) as resp:
-                resp.raise_for_status()
-            await asyncio.sleep(100)
+        async with session.patch(f"{bitaxe_ip}/api/system", json=settings, timeout=10) as response:
+            if response.status != 200:
+                logger.error(f"Error setting system settings on {bitaxe_ip}: HTTP {response.status}")
+                return False
+            logger.info(f"Applying settings... Voltage = {core_voltage}mV, Frequency = {frequency}MHz")
+            await asyncio.sleep(2)
+            await restart_system(bitaxe_ip, session)
+            return True
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout when setting system settings on {bitaxe_ip}")
+    except aiohttp.ClientError as e:
+        logger.error(f"Error setting system settings on {bitaxe_ip}: {e}")
+    return False
+
+async def restart_system(bitaxe_ip, session):
+
+    try:
+        # Check if we're being called from handle_sigint
+        is_interrupt = handling_interrupt
+
+        # Restart here as some bitaxes get unstable with bad settings
+        # If not an interrupt, wait 90s for system stabilization as some bitaxes are slow to ramp up
+        if not is_interrupt:
+            logger.info(f"Applying new settings and waiting 90s for system stabilization...")
+            async with session.post(f"{bitaxe_ip}/api/system/restart", timeout=10) as response:
+                if response.status != 200:
+                    logger.error(f"Error restarting the system at {bitaxe_ip}: HTTP {response.status}")
+            await asyncio.sleep(90)  # Allow 90s time for the system to restart and start hashing
         else:
-            logger.info("Best settings applied")
-            async with session.post(url, timeout=15) as resp:
-                resp.raise_for_status()
-    except Exception as e:
-        logger.warning(f"Restart failed: {e}")
+            logger.info(f"Applying final settings...")
+            async with session.post(f"{bitaxe_ip}/api/system/restart", timeout=10) as response:
+                if response.status != 200:
+                    logger.error(f"Error restarting the system at {bitaxe_ip}: HTTP {response.status}")
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout restarting system")
+    except aiohttp.ClientError as e:
+        logger.error(f"Error restarting the system {e}")
 
-async def get_system_info(session):
-    # Use the first IP for single device mode
-    url = f"{bitaxe_ips[0]}/api/system/info"
-    for attempt in range(5):
-        try:
-            async with session.get(url, timeout=10) as resp:
-                resp.raise_for_status()
-                return await resp.json()
-        except asyncio.TimeoutError:
-            logger.warning(f"Timeout fetching system info. Attempt {attempt+1}")
-        except aiohttp.ClientError as e:
-            logger.error(f"Error fetching system info: {e}")
-            break
-        await asyncio.sleep(5)
-    return None
-
-async def benchmark_iteration(session, core_voltage, frequency):
-    total_samples = benchmark_time // sample_interval
-    expected_hashrate = frequency * ((small_core_count * asic_count) / 1000) # Calculate expected hashrate based on frequency
+async def benchmark_iteration(bitaxe_ip, core_voltage, frequency, session):
+    current_time = time.strftime("%H:%M:%S")
+    print(CYAN + f"[{current_time}] Starting benchmark | Core Voltage: {core_voltage}mV, Frequency: {frequency}MHz" + RESET)
     hash_rates = []
     temperatures = []
-    power_consumptions = []
+    power_consumptions = [] 
     vr_temps = []
     fan_speeds = []
+    total_samples = benchmark_time // sample_interval
+    expected_hashrate = frequency * ((small_core_count * asic_count) / 1000)  # Calculate expected hashrate based on frequency
 
     for sample in range(total_samples):
-        if shutdown_event.is_set():
-            logger.info("Shutdown detected during benchmark, stopping immediately.")
-            return None, None, None, False, None, None, None, "SHUTDOWN_DURING_BENCHMARK"
-
-        info = await get_system_info(session)
+        info = await get_system_info(bitaxe_ip, session)
         if info is None:
-            logger.error("Failed to fetch system info.")
+            logger.info(f"Skipping this iteration due to failure in fetching system info.")
             return None, None, None, False, None, None, None, "SYSTEM_INFO_FAILURE"
 
-        temp = info.get("temp") # Get ASIC temperature if available
-        vr_temp = info.get("vrTemp") # Get VR temperature if available
-        voltage = info.get("voltage") # Get Internal Voltage if available
-        hash_rate = info.get("hashRate") # Get Hahs Rate if available
-        power_consumption = info.get("power") # Get Power Consumption if available
-        fan_speed = info.get("fanspeed") # Get Fan Speed if available
-
-        # Check limits
+        temp = info.get("temp")
+        vr_temp = info.get("vrTemp")  # Get VR temperature if available
+        voltage = info.get("voltage")
         if temp is None:
-            logger.warning("Temperature data not available.")
+            logger.info(f"Temperature data not available from {bitaxe_ip}.")
             return None, None, None, False, None, None, None, "TEMPERATURE_DATA_FAILURE"
+
         if temp < 5:
-            logger.warning("Temperature below 5°C.")
+            logger.info(f"Temperature is below 5°C for {bitaxe_ip}. This is unexpected. Please check the system.")
             return None, None, None, False, None, None, None, "TEMPERATURE_BELOW_5"
+
+        # Check both chip and VR temperatures
         if temp >= max_temp:
-            logger.warning("Chip temp exceeded.")
+            logger.error(f"Chip temperature exceeded {max_temp}°C on {bitaxe_ip}! Stopping current benchmark.")
             return None, None, None, False, None, None, None, "CHIP_TEMP_EXCEEDED"
+
         if vr_temp is not None and vr_temp >= max_vr_temp:
-            logger.warning("VR temp exceeded.")
+            logger.error(f"Voltage regulator temperature exceeded {max_vr_temp}°C on {bitaxe_ip}! Stopping current benchmark.")
             return None, None, None, False, None, None, None, "VR_TEMP_EXCEEDED"
+
         if voltage is not None:
             if voltage < min_input_voltage:
-                logger.warning("Input voltage below min.")
+                logger.error(f"Input voltage is below the minimum allowed value of {min_input_voltage}mV on {bitaxe_ip}! Stopping current benchmark.")
                 return None, None, None, False, None, None, None, "INPUT_VOLTAGE_BELOW_MIN"
             if voltage > max_input_voltage:
-                logger.warning("Input voltage above max.")
+                logger.error(f"Input voltage is above the maximum allowed value of {max_input_voltage}mV on {bitaxe_ip}! Stopping current benchmark.")
                 return None, None, None, False, None, None, None, "INPUT_VOLTAGE_ABOVE_MAX"
+
+        hash_rate = info.get("hashRate")
+        power_consumption = info.get("power")
+        fan_speed = info.get("fanspeed")    
+
         if hash_rate is None or power_consumption is None:
-                logger.warning("Hashrate or power data missing.")
-                return None, None, None, False, None, None, None, "HASHRATE_POWER_DATA_FAILURE"
+            logger.info(f"Hashrate or Watts data not available.")
+            return None, None, None, False, None, None, None, "HASHRATE_POWER_DATA_FAILURE"
+
         if power_consumption > max_power:
-            logger.warning("Power exceeded.")
+            logger.error(f"Power consumption exceeded {max_power}W! Stopping current benchmark.")
             return None, None, None, False, None, None, None, "POWER_CONSUMPTION_EXCEEDED"
 
         hash_rates.append(hash_rate)
         temperatures.append(temp)
         power_consumptions.append(power_consumption)
-        if vr_temp is not None:
+        if vr_temp is not None and vr_temp > 0:
             vr_temps.append(vr_temp)
         if fan_speed is not None:
             fan_speeds.append(fan_speed)
 
-        # Progress update
+        # Calculate percentage progress
         percentage_progress = ((sample + 1) / total_samples) * 100
-        logger.info(
-            f"{CYAN}[{sample+1:2d}/{total_samples:2d}] {percentage_progress:5.1f}% | "
-            f"CV:{core_voltage:4d}mV | FRQ:{frequency:4d}MHz | "
-            f"HR:{int(hash_rate):4d} GH/s | IV:{int(voltage):4d}mV | TMP:{int(temp):2d}°C"
-            + (f" | VR:{int(vr_temp):2d}°C" if vr_temp is not None and vr_temp > 0 else "")
-            + (f" | PWR:{int(power_consumption):2d}W" if power_consumption is not None else "")
-            + (f" | FAN:{int(fan_speed):2d}%" if fan_speed is not None else "")
+        status_line = (
+            f"[{sample + 1:2d}/{total_samples:2d}] "
+            f"{percentage_progress:5.1f}% | "
+            f"CV: {core_voltage:4d}mV | "
+            f"F: {frequency:4d}MHz | "
+            f"H: {int(hash_rate):4d} GH/s | "
+            f"IV: {int(voltage):4d}mV | "
+            f"T: {int(temp):2d}°C"
         )
+        if vr_temp is not None and vr_temp > 0:
+            status_line += f" | VR: {int(vr_temp):2d}°C"
+
+        # Add Power (Watts) to the status line if available
+        if power_consumption is not None:
+            status_line += f" | P: {int(power_consumption):2d} W"
+
+        # Add Fan Speed to the status line if available
+        if fan_speed is not None:
+            status_line += f" | FAN: {int(fan_speed):2d}%"
+
+        logger.info(status_line)
 
         # Only sleep if it's not the last iteration
         if sample < total_samples - 1:
             await asyncio.sleep(sample_interval)
 
-    # Process results
     if hash_rates and temperatures and power_consumptions:
+        # Remove 3 highest and 3 lowest hashrates in case of outliers
         sorted_hashrates = sorted(hash_rates)
-        trimmed_hashrates = sorted_hashrates[3:-3] # Remove first 3 and last 3 elements
-        avg_hashrate = sum(trimmed_hashrates) / len(trimmed_hashrates)
+        # Protect against short lists
+        if len(sorted_hashrates) > 6:
+            trimmed_hashrates = sorted_hashrates[3:-3]  # Remove first 3 and last 3 elements
+        else:
+            trimmed_hashrates = sorted_hashrates
+        average_hashrate = sum(trimmed_hashrates) / len(trimmed_hashrates)
 
         # Sort and trim temperatures (remove lowest 6 readings during warmup)
         sorted_temps = sorted(temperatures)
-        trimmed_temps = sorted_temps[6:] # Remove first 6 elements only
-        avg_temp = sum(trimmed_temps) / len(trimmed_temps)
+        if len(sorted_temps) > 6:
+            trimmed_temps = sorted_temps[6:]  # Remove first 6 elements only
+        else:
+            trimmed_temps = sorted_temps
+        average_temperature = sum(trimmed_temps) / len(trimmed_temps)
 
         # Only process VR temps if we have valid readings
-        avg_vr_temp = None
+        average_vr_temp = None
         if vr_temps:
-            sorted_vr = sorted(vr_temps)
-            trimmed_vr = sorted_vr[6:]
-            avg_vr_temp = sum(trimmed_vr) / len(trimmed_vr)
+            sorted_vr_temps = sorted(vr_temps)
+            if len(sorted_vr_temps) > 6:
+                trimmed_vr_temps = sorted_vr_temps[6:]  # Remove first 6 elements only
+            else:
+                trimmed_vr_temps = sorted_vr_temps
+            average_vr_temp = sum(trimmed_vr_temps) / len(trimmed_vr_temps)
 
-        avg_power = sum(power_consumptions) / len(power_consumptions)
+        average_power = sum(power_consumptions) / len(power_consumptions)
 
-        avg_fan_speed = None
+        average_fan_speed = None
         if fan_speeds:
-            avg_fan_speed = sum(fan_speeds) / len(fan_speeds)
-            logger.info(f"{YELLOW}Avg Fan Speed: {avg_fan_speed:.2f}%{RESET}")
+            average_fan_speed = sum(fan_speeds) / len(fan_speeds)
+            logger.debug(f"Average Fan Speed   {average_fan_speed:.2f}%")
 
-        if avg_hashrate > 0:
-            efficiency = avg_power / (avg_hashrate / 1000)
+        # Add protection against zero hashrate
+        if average_hashrate > 0:
+            efficiency_jth = average_power / (average_hashrate / 1_000)
         else:
-            logger.warning("Zero Hashrate detected.")
+            logger.error(f"Warning: Zero hashrate detected on {bitaxe_ip}, skipping efficiency calculation")
             return None, None, None, False, None, None, None, "ZERO_HASHRATE"
 
-        hashrate_ok = (avg_hashrate >= expected_hashrate * 0.94)
+        # Calculate if hashrate is within 6% of expected
+        hashrate_within_tolerance = (average_hashrate >= expected_hashrate * 0.94)
 
-        logger.info(f"{YELLOW}Avg Hashrate: {avg_hashrate:.2f} GH/s (Expected: {expected_hashrate:.2f}){RESET}")
-        logger.info(f"{YELLOW}Avg Temp: {avg_temp:.2f}°C{RESET}")
-        if avg_vr_temp is not None:
-            logger.info(f"{YELLOW}Avg VR Temp: {avg_vr_temp:.2f}°C{RESET}")
-        logger.info(f"{YELLOW}Efficiency: {efficiency:.2f} J/TH{RESET}")
+        logger.debug(f"Average Hashrate   {average_hashrate:.2f} GH/s (Expected: {expected_hashrate:.2f} GH/s)")
+        logger.debug(f"Average Temperature   {average_temperature:.2f}°C")
+        if average_vr_temp is not None:
+            logger.debug(f"Average VR Temperature   {average_vr_temp:.2f}°C")
+        logger.debug(f"Efficiency   {efficiency_jth:.2f} J/TH")
 
-        return avg_hashrate, avg_temp, efficiency, hashrate_ok, avg_vr_temp, avg_power, avg_fan_speed, None
+        return average_hashrate, average_temperature, efficiency_jth, hashrate_within_tolerance, average_vr_temp, average_power, average_fan_speed, None
     else:
-        logger.warning("Insufficient data collected.")
-        return None, None, None, False, None, None, None, "NO_DATA"
+        logger.info(f"No Hashrate or Temperature or Watts data collected for {bitaxe_ip}.")
+        return None, None, None, False, None, None, None, "NO_DATA_COLLECTED"
 
-# Main async flow
-async def main():
-    global session, results, system_reset_done
-    async with aiohttp.ClientSession() as session:
-        # Fetch default info
-        await fetch_default_settings(session)
+def save_results():
+    try:
+        # If multiple devices, create multiple saves or a single combined file — original used one file per IP
+        # Here we will save a single file with all results, naming by first IP for legacy compatibility
+        if results:
+            # Use the first result's ip if available
+            ip_address = results[0].get("ip", "multi") if results else "multi"
+        else:
+            ip_address = "no_results"
+        filename = f"Benchmark@{ip_address}.json"
+        with open(filename, "w") as f:
+            json.dump(results, f, indent=4)
+        logger.debug(f"Results saved to {filename}")
+        print()  # Add empty line
 
-        # User only wants to set values
-        if args.set_values:
-            logger.info("Applying settings only...")
-            await set_system_settings(session, initial_voltage, initial_frequency)
-            logger.info("Settings applied. Check web interface.")
+    except IOError as e:
+        logger.error(f"Error saving results to file: {e}")
+
+async def reset_to_best_setting(ip, session):
+    """
+    Apply the best or default settings for a given IP using the same selection logic,
+    but keep the result structure compatible with original reset_to_best_setting.
+    """
+    if not results:
+        logger.info(f"No valid benchmarking results found. Applying predefined default settings to {ip}.")
+        await set_system_settings(ip, default_voltage, default_frequency, session)
+    else:
+        # Filter results for this IP
+        ip_results = [r for r in results if r.get("ip") == ip and r.get("averageHashRate") is not None]
+        if not ip_results:
+            logger.info(f"No valid benchmarking results found for {ip}. Applying predefined default settings.")
+            await set_system_settings(ip, default_voltage, default_frequency, session)
+        else:
+            best_result = sorted(ip_results, key=lambda x: x["averageHashRate"], reverse=True)[0]
+            best_voltage = best_result["coreVoltage"]
+            best_frequency = best_result["frequency"]
+
+            logger.debug(f"Applying the best settings from benchmarking to {ip}:\n"
+                          f"  Core Voltage: {best_voltage}mV\n"
+                          f"  Frequency: {best_frequency}MHz")
+            await set_system_settings(ip, best_voltage, best_frequency, session)
+    await restart_system(ip, session)
+
+# --- Signal handling adapted for asyncio ---
+def handle_sigint(signum, frame):
+    global system_reset_done, handling_interrupt
+    if handling_interrupt or system_reset_done:
+        return
+
+    handling_interrupt = True
+    logger.error("Benchmarking interrupted by user.")
+
+    # Cancel all tasks
+    for t in running_tasks:
+        if not t.done():
+            t.cancel()
+
+# Register the signal handler for the main process
+signal.signal(signal.SIGINT, handle_sigint)
+
+# --- Per-device worker orchestrator ---
+async def device_worker(raw_ip):
+    global results, system_reset_done, handling_interrupt
+    
+    bitaxe_ip = f"http://{raw_ip}"
+
+    # For each device open its own ClientSession
+    timeout = aiohttp.ClientTimeout(total=None, sock_connect=10, sock_read=10)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        # Fetch defaults from the device
+        ok = await fetch_default_settings(bitaxe_ip, session)
+        if not ok:
+            logger.error(f"Failed to fetch defaults for {bitaxe_ip}. Skipping device.")
             return
 
-        # Disclaimer
-        logger.warning(RED + "DISCLAIMER: This program Benchmarks your BITAXE Device. ENSURE YOU HAVE PROPER COOLING TO YOUR BOARD AND PSU... USE AT OWN RISK!!!." + RESET)
-        logger.warning(RED + "While safeguards are in place, running hardware outside of standard parameters carries inherent risks" + RESET)
-        logger.warning(RED + "THE AUTHORS ARE 'NOT' RESPONSIBLE FOR ANY DAMAGE TO YOUR DEVICE" + RESET)
-        
-        print(MAGENTA + f"\nNOTE: Ambient temperature significantly affects these results. The optimal settings found may not work well if room temperature changes substantially. Re-run the benchmark if conditions change.\n" + RESET)
+        # If we're in set-values mode, apply settings and exit for this device
+        if args.set_values:
+            logger.debug(f"\n--- Applying Settings Only to {bitaxe_ip} ---")
+            logger.debug(f"Applying Core Voltage: {initial_voltage}mV, Frequency: {initial_frequency}MHz to Bitaxe at {bitaxe_ip}.")
+            await set_system_settings(bitaxe_ip, initial_voltage, initial_frequency, session)
+            logger.debug(f"Settings applied to {bitaxe_ip}. Check your Bitaxe web interface to confirm.")
+            return
 
-        for current_voltage in voltages_list:
-            # Check shutdown at the start of each voltage
-            if shutdown_event.is_set():
-                break
-            
-            for current_frequency in frequencies_list:
-                # Check shutdown at the start of each frequency
-                if shutdown_event.is_set():
-                    break
-                    
-                # Check shutdown one more time before starting the actual benchmark
-                if shutdown_event.is_set():
-                    break
-                
-                await set_system_settings(session, current_voltage, current_frequency)
-                results_data = await benchmark_iteration(session, current_voltage, current_frequency)
+        # Main benchmarking process for this device
+        try:
+            # Add disclaimer per device
+            print(RED + "\nDISCLAIMER:" + RESET)
+            print(YELLOW + "This tool will stress test your Bitaxe by running it at various voltages and frequencies." + RESET)
+            print(YELLOW + "While safeguards are in place, running hardware outside of standard parameters carries inherent risks." + RESET)
+            print(YELLOW + "Use this tool at your own risk. The author(s) are not responsible for any damage to your hardware." + RESET)
+            print(MAGENTA + "\nNOTE: Ambient temperature significantly affects these results. The optimal settings found may not" + RESET)
+            print(MAGENTA + "work well if room temperature changes substantially. Re-run the benchmark if conditions change.\n" + RESET)
 
-                if results_data[0] is not None:
-                    (avg_hashrate, avg_temp, efficiency, hashrate_ok, avg_vr_temp, avg_power, avg_fan_speed, error_reason) = results_data
-                    result_entry = {
+            current_voltage = initial_voltage
+            current_frequency = initial_frequency
+
+            while current_voltage <= max_allowed_voltage and current_frequency <= max_allowed_frequency:
+                # Apply settings (async)
+                await set_system_settings(bitaxe_ip, current_voltage, current_frequency, session)
+                avg_hashrate, avg_temp, efficiency_jth, hashrate_ok, avg_vr_temp, avg_power, avg_fan_speed, error_reason = await benchmark_iteration(bitaxe_ip, current_voltage, current_frequency, session)
+
+                if avg_hashrate is not None and avg_temp is not None and efficiency_jth is not None:
+                    result = {
+                        "ip": raw_ip,
                         "coreVoltage": current_voltage,
                         "frequency": current_frequency,
                         "averageHashRate": avg_hashrate,
                         "averageTemperature": avg_temp,
-                        "efficiencyJTH": efficiency,
+                        "efficiencyJTH": efficiency_jth,
                         "averagePower": avg_power,
                         "errorReason": error_reason
                     }
+
+                    # Only add VR temp if it exists
                     if avg_vr_temp is not None:
-                        result_entry["averageVRTemp"] = avg_vr_temp
+                        result["averageVRTemp"] = avg_vr_temp
+
+                    # Only add Fan Speed if it exists (assuming it's not None)
                     if avg_fan_speed is not None:
-                        result_entry["averageFanSpeed"] = avg_fan_speed
-                    results.append(result_entry)
+                        result["averageFanSpeed"] = avg_fan_speed
 
-        # Save results
-        await save_results()
+                    results.append(result)
 
-        # Results
-        if results:
-            top_results = sorted(results, key=lambda x: x['averageHashRate'], reverse=True)[:5]
-            top_efficient_results = sorted(results, key=lambda x: x["efficiencyJTH"], reverse=False)[:5]
-            print("\nTop 5 results by Hashrate:")
-            for res in top_results + top_efficient_results[:5]:
-                print(f"Voltage: {res['coreVoltage']}mV, Freq: {res['frequency']}MHz, Hashrate: {res['averageHashRate']} GH/s")
-        # Reset to best setting
-        await reset_to_best_setting(session)
+                    if hashrate_ok:
+                        # If hashrate is good, try increasing frequency
+                        if current_frequency + frequency_increment <= max_allowed_frequency:
+                            current_frequency += frequency_increment
+                        else:
+                            break  # We've reached max frequency with good results
+                    else:
+                        # If hashrate is not good, go back one frequency step and increase voltage
+                        if current_voltage + voltage_increment <= max_allowed_voltage:
+                            current_voltage += voltage_increment
+                            current_frequency -= frequency_increment  # Go back to one frequency step and retry
+                            logger.info(f"Hashrate to low compared to expected on {bitaxe_ip}. Decreasing frequency to {current_frequency}MHz and increasing voltage to {current_voltage}mV")
+                        else:
+                            break  # We've reached max voltage without good results
+                else:
+                    # If we hit thermal limits or other issues, we've found the highest safe settings
+                    logger.error(f"Reached thermal or stability limits. Stopping further testing.")
+                    break  # Stop testing higher values
 
-# --- Save results ---
-async def save_results():
-    ip_addr = args.bitaxe_ips[0]
-    filename = f"Benchmark@{ip_addr}.json"
+                # Save intermittent results for the device
+                save_results()
+
+                # If global interrupt flag is set, break
+                if handling_interrupt:
+                    logger.critical(f"Interrupt detected; stopping benchmarking loop.")
+                    break
+
+        except asyncio.CancelledError:
+            logger.error(f"Device worker cancelled.")
+        except Exception as e:
+            print(RED + f"An unexpected error occurred   {e}" + RESET)
+            if results:
+                await reset_to_best_setting(raw_ip, session)
+                save_results()
+            else:
+                logger.info(GREEN + "No valid benchmarking results found. Applying predefined default settings." + RESET)
+                await set_system_settings(bitaxe_ip, default_voltage, default_frequency, session)
+                await restart_system(bitaxe_ip, session)
+        finally:
+            # Final cleanup per device
+            if not system_reset_done:
+                if results:
+                    await reset_to_best_setting(raw_ip, session)
+                    save_results()
+                    logger.debug(f"Bitaxe reset to best or default settings and results saved.")
+                else:
+                    logger.info(f"No valid benchmarking results found for {bitaxe_ip}. Applying predefined default settings.")
+                    await set_system_settings(bitaxe_ip, default_voltage, default_frequency, session)
+                    await restart_system(bitaxe_ip, session)
+                # Do not set system_reset_done True here globally; each device will be handled but flag remains for overall shutdown
+
+# --- Main entrypoint ---
+async def main():
+    global running_tasks, system_reset_done
+
+    # Launch a worker per IP
+    ips = args.bitaxe_ips  # raw IPs like "192.168.1.136"
+    tasks = []
+    for ip in ips:
+        task = asyncio.create_task(device_worker(ip))
+        running_tasks.append(task)
+        tasks.append(task)
+
+    # Wait for all tasks to finish; handle cancellations gracefully
     try:
-        with open(filename, "w") as f:
-            json.dump(results, f, indent=4)
-        logger.info(f"Results saved to {filename}")
-    except Exception as e:
-        logger.error(f"Error saving results: {e}")
-
-# --- Reset to best setting ---
-async def reset_to_best_setting(session):
-    if not results:
-        logger.info("No results, applying default settings.")
-        await set_system_settings(session, default_voltage, default_frequency)
-    else:
-        best = max(results, key=lambda x: x["averageHashRate"])
-        logger.info(f"Applying best settings: Voltage={best['coreVoltage']}mV, Freq={best['frequency']}MHz")
-        await set_system_settings(session, best['coreVoltage'], best['frequency'])
-    await restart_system(session)
-
-# --- Signal handler ---
-def handle_sigint(signum, frame):
-    global system_reset_done, handling_interrupt
-    
-    # If we're already handling an interrupt or have completed reset, ignore this signal
-    if handling_interrupt or system_reset_done:
-        return
-        
-    handling_interrupt = True
-    logger.error("Benchmarking interrupted by user.")
-    
-    try:
-        if results:
-            reset_to_best_setting()
-            save_results()
-            logger.info("Bitaxe reset to best or default settings and results saved.")
-        else:
-            logger.warning("No valid benchmarking results found. Applying predefined default settings.")
-            set_system_settings(default_voltage, default_frequency)
+        await asyncio.gather(*tasks)
+    except asyncio.CancelledError:
+        logger.info("Main: tasks cancelled.")
     finally:
-        system_reset_done = True
-        handling_interrupt = False
-        sys.exit(0)
-    
-    # Schedule async cleanup
-    asyncio.create_task(cleanup_and_exit())
-
-async def cleanup_and_exit(reason=None):
-    global system_reset_done
-    if system_reset_done:
-        return
-        
-    try:
+        # Once all tasks done or cancelled, perform final combined save/summary
         if results:
-            reset_to_best_setting()
-            save_results()
-            print(GREEN + "Bitaxe reset to best settings and results saved." + RESET)
+            # Sort results by averageHashRate in descending order and get the top 5
+            top_5_results = sorted(results, key=lambda x: x.get("averageHashRate", 0), reverse=True)[:5]
+            top_5_efficient_results = sorted(results, key=lambda x: x.get("efficiencyJTH", float('inf')), reverse=False)[:5]
+
+            # Create a dictionary containing all results and top performers
+            final_data = {
+                "all_results": results,
+                "top_performers": [
+                    {
+                        "rank": i,
+                        "ip": result["ip"],
+                        "coreVoltage": result["coreVoltage"],
+                        "frequency": result["frequency"],
+                        "averageHashRate": result["averageHashRate"],
+                        "averageTemperature": result["averageTemperature"],
+                        "efficiencyJTH": result["efficiencyJTH"],
+                        "averagePower": result["averagePower"],
+                        **({"averageVRTemp": result["averageVRTemp"]} if "averageVRTemp" in result else {}),
+                        **({"averageFanSpeed": result["averageFanSpeed"]} if "averageFanSpeed" in result else {})
+                    }
+                    for i, result in enumerate(top_5_results, 1)
+                ],
+                "most_efficient": [
+                    {
+                        "rank": i,
+                        "ip": result["ip"],
+                        "coreVoltage": result["coreVoltage"],
+                        "frequency": result["frequency"],
+                        "averageHashRate": result["averageHashRate"],
+                        "averageTemperature": result["averageTemperature"],
+                        "efficiencyJTH": result["efficiencyJTH"],
+                        "averagePower": result["averagePower"],
+                        **({"averageVRTemp": result["averageVRTemp"]} if "averageVRTemp" in result else {}),
+                        **({"averageFanSpeed": result["averageFanSpeed"]} if "averageFanSpeed" in result else {})
+                    }
+                    for i, result in enumerate(top_5_efficient_results, 1)
+                ]
+            }
+
+            # Save the final data to JSON with a consolidated name
+            first_ip = results[0].get("ip", "multi")
+            filename = f"bitaxe_benchmark_results_{first_ip}.json"
+            with open(filename, "w") as f:
+                json.dump(final_data, f, indent=4)
+
+            logger.debug("Benchmarking completed.")
+            if top_5_results:
+                logger.debug("\nTop 5 Highest Hashrate Settings:")
+                for i, result in enumerate(top_5_results, 1):
+                    logger.debug(f"\nRank {i}:")
+                    logger.debug(f"  IP: {result['ip']}")
+                    logger.debug(f"  Core Voltage: {result['coreVoltage']}mV")
+                    logger.debug(f"  Frequency: {result['frequency']}MHz")
+                    logger.debug(f"  Average Hashrate: {result['averageHashRate']:.2f} GH/s")
+                    logger.debug(f"  Average Temperature: {result['averageTemperature']:.2f}°C")
+                    logger.debug(f"  Efficiency: {result['efficiencyJTH']:.2f} J/TH")
+                    logger.debug(f"  Average Power: {result['averagePower']:.2f} W")
+                    if "averageFanSpeed" in result:
+                        logger.debug(f"  Average Fan Speed: {result['averageFanSpeed']:.2f}%")
+                    if "averageVRTemp" in result:
+                        logger.debug(f"  Average VR Temperature: {result['averageVRTemp']:.2f}°C")
+
+                logger.debug("\nTop 5 Most Efficient Settings:")
+                for i, result in enumerate(top_5_efficient_results, 1):
+                    logger.debug(f"\nRank {i}:")
+                    logger.debug(f"  IP: {result['ip']}")
+                    logger.debug(f"  Core Voltage: {result['coreVoltage']}mV")
+                    logger.debug(f"  Frequency: {result['frequency']}MHz")
+                    logger.debug(f"  Average Hashrate: {result['averageHashRate']:.2f} GH/s")
+                    logger.debug(f"  Average Temperature: {result['averageTemperature']:.2f}°C")
+                    logger.debug(f"  Efficiency: {result['efficiencyJTH']:.2f} J/TH")
+                    logger.debug(f"  Average Power: {result['averagePower']:.2f} W")
+                    if "averageFanSpeed" in result:
+                        logger.debug(f"  Average Fan Speed: {result['averageFanSpeed']:.2f}%")
+                    if "averageVRTemp" in result:
+                        logger.debug(f"  Average VR Temperature: {result['averageVRTemp']:.2f}°C")
+            else:
+                logger.error("No valid results were found during benchmarking.")
         else:
-            print(YELLOW + "No valid benchmarking results found. Applying predefined default settings." + RESET)
-            set_system_settings(default_voltage, default_frequency)
-    finally:
+            logger.error("No results were collected from any device.")
         system_reset_done = True
-        if reason:
-            print(RED + f"Benchmarking stopped: {reason}" + RESET)
-        print(GREEN + "Benchmarking completed." + RESET)
-        sys.exit(0)
 
-# Register the signal handler
-signal.signal(signal.SIGINT, handle_sigint)
-
-if __name__ == '__main__':
-    asyncio.run(main())
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received; exiting.")
