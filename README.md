@@ -9,8 +9,11 @@ A Python-based benchmarking tool for optimizing Bitaxe mining performance by tes
 - Updated UI ~ Fixed color issues, now has color codded script using colorama!
 - Improved Efficiency and Speed
 - Better Resource Utilization
-  
    **Absolutely Optimized !!** 
+
+**NEW**
+- New GUI Version / BBT.py just install the requirements as normal and run the script or run with Visual Studio
+  
 
 ## Features
 
