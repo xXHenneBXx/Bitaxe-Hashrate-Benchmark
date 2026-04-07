@@ -76,13 +76,13 @@ def parse_arguments():
         epilog=
         f"{GREEN}Examples:{RESET}\n"
         f"  {GREEN}1. Run a full benchmark (starting at 1150mV, 500MHz):{RESET}\n"
-        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py 192.168.1.136{RESET}\n\n"
+        f"     {CYAN}python benchmarker.py 192.168.1.136{RESET}\n\n"
         f"  {GREEN}2. Apply specific settings (1150mV, 780MHz) and exit:{RESET}\n"
-        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py 192.168.1.136 --set-values -v 1150 -f 780{RESET}\n\n"
+        f"     {CYAN}python benchmarker.py 192.168.1.136 --set-values -v 1150 -f 780{RESET}\n\n"
         f"  {GREEN}3. Benchmark multiple devices:{RESET}\n"
-        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py 192.168.1.136 192.168.1.137 -v 1150 -f 500{RESET}\n\n"
+        f"     {CYAN}python benchmarker.py 192.168.1.136 192.168.1.137 -v 1150 -f 500{RESET}\n\n"
         f"  {GREEN}4. Get help (this message):{RESET}\n"
-        f"     {CYAN}python bitaxe_hasrate_benchmark_async.py --help{RESET}",
+        f"     {CYAN}python benchmarker.py --help{RESET}",
         formatter_class=RawTextAndDefaultsHelpFormatter # <--- USE THE CUSTOM FORMATTER
     )
 
