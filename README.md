@@ -191,7 +191,8 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 Please use this tool responsibly. Overclocking and voltage modifications can potentially damage your hardware if not done carefully. Always ensure proper cooling and monitor your device during benchmarking.
 
-<img width="1440" height="900" alt="BBT Startup" src="https://github.com/user-attachments/assets/d3274e9a-8366-4e4a-933d-ce2d78488fe3" />
-<img width="1440" height="900" alt="BBT1" src="https://github.com/user-attachments/assets/9759a295-645f-4971-bc4e-955b08f385a3" />
-<img width="1440" height="900" alt="BBT_Dark" src="https://github.com/user-attachments/assets/f50dca40-a895-4d39-8fec-00ea2174f0b7" />
+
+<img width="1438" height="858" alt="BBT1" src="https://github.com/user-attachments/assets/c6f2ad3c-0fb7-4cda-8f29-0726426d12b8" />
+<img width="960" height="862" alt="BBT Startup" src="https://github.com/user-attachments/assets/dc6025ec-677f-48a6-a7e6-a578d8c3508a" />
+<img width="1444" height="858" alt="BBT_Dark" src="https://github.com/user-attachments/assets/d140813f-3b79-4bd4-afe9-a3555d7a6857" />
 
